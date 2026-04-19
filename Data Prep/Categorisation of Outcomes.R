@@ -16,7 +16,8 @@ Outcome_Categories_Global_Protest <- Global_Protest %>%
   
   TRUE ~ "Uncategorised"
   ))
-     
+
+#control mechanism do avoid uncategorised cases and to refine allocation
 Uncatagorised <- Outcome_Categories_Global_Protest %>%
   filter(protest_outcome == "Uncategorised") %>%
   select(Outcomes)
