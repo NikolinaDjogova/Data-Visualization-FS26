@@ -51,7 +51,9 @@ Clean_Up_Dates <- Outcome_Categories_Global_Protest %>%
     TRUE ~ NA_character_
   ))
 
-
+#control mechanism to avoid dateless cases
 No_Dates <- Clean_Up_Dates %>%
   filter(is.na(duration_days)) %>%
   select(Duration)
+
+write.csv(Outcome_Categories_Global_Protest, "Data/Clean_Up_Dates.csv", row.names = FALSE)
