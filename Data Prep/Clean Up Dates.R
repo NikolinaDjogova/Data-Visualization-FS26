@@ -1,59 +1,56 @@
 library(tidyverse)
 
-Clean_Up_Dates <- Outcome_Categories_Global_Protest %>%
-  mutate(duration_days = case_when(
-    str_detect(Duration, regex("active", ignore_case = TRUE)) ~ "Active",
-    str_detect(Duration, regex("^1 day", ignore_case = TRUE)) ~ "1",
-    str_detect(Duration, regex("^2 days", ignore_case = TRUE)) ~ "2",
-    str_detect(Duration, regex("^3 days", ignore_case = TRUE)) ~ "3",
-    str_detect(Duration, regex("^4 days", ignore_case = TRUE)) ~ "4",
-    str_detect(Duration, regex("^5 days", ignore_case = TRUE)) ~ "5",
-    str_detect(Duration, regex("^6 days", ignore_case = TRUE)) ~ "6",
-    str_detect(Duration, regex("^8 days", ignore_case = TRUE)) ~ "8",
-    str_detect(Duration, regex("^9 days", ignore_case = TRUE)) ~ "9",
-    str_detect(Duration, regex("^10 days", ignore_case = TRUE)) ~ "10",
-    str_detect(Duration, regex("^11 days", ignore_case = TRUE)) ~ "11",
-    str_detect(Duration, regex("^55 days", ignore_case = TRUE)) ~ "55",
-    str_detect(Duration, regex("^1 week", ignore_case = TRUE)) ~ "7",
-    str_detect(Duration, regex("^2 weeks", ignore_case = TRUE)) ~ "14",
-    str_detect(Duration, regex("^2.5 weeks", ignore_case = TRUE)) ~ "18",
-    str_detect(Duration, regex("^3 weeks", ignore_case = TRUE)) ~ "21",
-    str_detect(Duration, regex("^4 weeks", ignore_case = TRUE)) ~ "28",
-    str_detect(Duration, regex("^5 weeks", ignore_case = TRUE)) ~ "35",
-    str_detect(Duration, regex("^6 weeks", ignore_case = TRUE)) ~ "42",
-    str_detect(Duration, regex("^1 month", ignore_case = TRUE)) ~ "30",
-    str_detect(Duration, regex("^2 months", ignore_case = TRUE)) ~ "60",
-    str_detect(Duration, regex("^3 months", ignore_case = TRUE)) ~ "90",
-    str_detect(Duration, regex("^3.5 months", ignore_case = TRUE)) ~ "105",
-    str_detect(Duration, regex("^4 months", ignore_case = TRUE)) ~ "120",
-    str_detect(Duration, regex("^4.5 months", ignore_case = TRUE)) ~ "135",
-    str_detect(Duration, regex("^5 months", ignore_case = TRUE)) ~ "150",
-    str_detect(Duration, regex("^6 months", ignore_case = TRUE)) ~ "180",
-    str_detect(Duration, regex("^7 months", ignore_case = TRUE)) ~ "210",
-    str_detect(Duration, regex("^8 months", ignore_case = TRUE)) ~ "240",
-    str_detect(Duration, regex("^9 months", ignore_case = TRUE)) ~ "270",
-    str_detect(Duration, regex("^10 months", ignore_case = TRUE)) ~ "300",
-    str_detect(Duration, regex("^11 months", ignore_case = TRUE)) ~ "330",
-    str_detect(Duration, regex("^13 months", ignore_case = TRUE)) ~ "390",
-    str_detect(Duration, regex("^1 year, 3 months", ignore_case = TRUE)) ~ "450",
-    str_detect(Duration, regex("^14 months", ignore_case = TRUE)) ~ "420",
-    str_detect(Duration, regex("^15 months", ignore_case = TRUE)) ~ "450",
-    str_detect(Duration, regex("^16 months", ignore_case = TRUE)) ~ "480",
-    str_detect(Duration, regex("^1 year", ignore_case = TRUE)) ~ "360",
-    str_detect(Duration, regex("^1.5 year", ignore_case = TRUE)) ~ "540",
-    str_detect(Duration, regex("^2 year", ignore_case = TRUE)) ~ "720",
-    str_detect(Duration, regex("^2.5 year", ignore_case = TRUE)) ~ "900",
-    str_detect(Duration, regex("^3 year", ignore_case = TRUE)) ~ "1080",
-    str_detect(Duration, regex("^4 year", ignore_case = TRUE)) ~ "1440",
-    str_detect(Duration, regex("^1-2 weeks", ignore_case = TRUE)) ~ "18",
-    str_detect(Duration, regex("^ten days", ignore_case = TRUE)) ~ "10",
-    str_detect(Duration, regex("^two weeks", ignore_case = TRUE)) ~ "14",
-    TRUE ~ NA_character_
-  ))
+Global_Protests <- read_csv("Data Prep/Global Protest Tracker - View Data.csv")
+
+Clean_Up_Dates <- Global_Protests %>%
+  mutate(
+    # keep track of whether protest is still ongoing
+    duration_status = case_when(
+      str_detect(Duration, regex("active|ongoing|continuing", ignore_case = TRUE)) ~ "Active",
+      is.na(Duration) ~ "No Data",
+      TRUE ~ "Ended"
+    ),
+    # clean text a little
+    Duration_clean = Duration %>%
+      str_to_lower() %>%
+      str_replace_all("–|—", "-") %>%
+      str_replace_all(",", "") %>%
+      str_trim(),
+    # turn written numbers into digits
+    Duration_clean = Duration_clean %>%
+      str_replace_all("\\bone\\b", "1") %>%
+      str_replace_all("\\btwo\\b", "2") %>%
+      str_replace_all("\\bthree\\b", "3") %>%
+      str_replace_all("\\bfour\\b", "4") %>%
+      str_replace_all("\\bfive\\b", "5") %>%
+      str_replace_all("\\bsix\\b", "6") %>%
+      str_replace_all("\\bseven\\b", "7") %>%
+      str_replace_all("\\beight\\b", "8") %>%
+      str_replace_all("\\bnine\\b", "9") %>%
+      str_replace_all("\\bten\\b", "10") %>%
+      str_replace_all("\\beleven\\b", "11"),
+    # extract first number
+    duration_number = readr::parse_number(Duration_clean),
+    
+    # convert to days
+    duration_days = case_when(
+      duration_status == "Active" ~ NA_real_,
+      str_detect(Duration_clean, "day") ~ duration_number,
+      str_detect(Duration_clean, "week") ~ duration_number * 7,
+      str_detect(Duration_clean, "month") ~ duration_number * 30,
+      str_detect(Duration_clean, "year") ~ duration_number * 365,
+      TRUE ~ NA_real_
+    ) |> as.integer()
+  ) %>%
+  select(-Duration_clean, -duration_number)
+
 
 #control mechanism to avoid dateless cases
 No_Dates <- Clean_Up_Dates %>%
-  filter(is.na(duration_days)) %>%
-  select(Duration)
+  filter(duration_status != "Active", is.na(duration_days)) %>%
+  select(Country, `Protest Name`, Duration)
 
-write.csv(Outcome_Categories_Global_Protest, "Data/Clean_Up_Dates.csv", row.names = FALSE)
+write_csv(Clean_Up_Dates, "Data/Clean_Up_Dates.csv")
+write_csv(No_Dates, "Data/No_Dates_QA.csv")
+
+View(Clean_Up_Dates)
