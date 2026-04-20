@@ -1,7 +1,7 @@
 library(tidyverse)
 library(readxl)
 
-Global_Protest <- read_excel("Data/Global Protest Tracker.xlsx")
+Global_Protest <- read_csv("Data Prep/Global Protest Tracker - View Data.csv")
 names(Global_Protest)
 
 
